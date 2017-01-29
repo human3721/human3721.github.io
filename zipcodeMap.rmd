@@ -5,7 +5,7 @@ output: html_document
 
 ### Date: Janurary 27 2017  
 
-### Click each marker to show cooresponding zip code and city & state names. 
+### Click on each marker to show cooresponding zip code and city & state names. 
 
 ```{r, echo=TRUE, fig.height=8, fig.width=10,fig.align='default'}
 library(leaflet)
