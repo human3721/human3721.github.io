@@ -1,0 +1,26 @@
+---
+title: "Week2 Project - United States Zip Code Location Leaflet Map"
+output: html_document
+---
+
+### Date: Janurary 27 2017  
+
+### Click each marker to show cooresponding zip code and city & state names. 
+
+```{r, echo=TRUE, fig.height=8, fig.width=10,fig.align='default'}
+library(leaflet)
+library(zipcode)
+library(maps)
+
+data("zipcode")     # load data zipcode
+str(zipcode)    # dataset contain city state, latitude, and longitude of each zipcode
+CleanZ<-zipcode[!(is.na(zipcode[,4])|is.na(zipcode[,5])),]  # remove rows with missing latitude and longitude
+mapStates <- map("county", fill = TRUE, plot = FALSE)   # mapdata of US county boundaries
+Zip_map<-leaflet(data = mapStates) %>%           # creates a Leaflet map based on the county boundries    
+    addTiles() %>%      # Add graphics elements and layers to the map widget
+    addPolygons(fillColor = topo.colors(10, alpha = NULL), stroke = FALSE)%>%       # fill counties with colors
+    addMarkers(lat=CleanZ$latitude,lng=CleanZ$longitude, 
+                     popup = paste0("Zip Code: ",CleanZ$zip,'<br/>', CleanZ$city, ", ", CleanZ$state) ,  
+                     clusterOptions = markerClusterOptions())       # add zipcode latitude, longtitude, and city & state names
+Zip_map      #display the Zip Code Leaflet map 
+```
