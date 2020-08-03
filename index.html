@@ -1,0 +1,424 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+
+<style>
+body {
+  font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
+  width: 960px;
+  height: 500px;
+  position: relative;
+}
+
+polyline{
+    opacity: .3;
+    stroke: black;
+    stroke-width: 2px;
+    fill: none;
+}
+
+.labelName tspan {
+    font-style: normal;
+    font-weight: 700;
+}
+
+.labelName {
+    font-size: 0.9em;
+    font-style: italic;
+}
+
+#tooltip{
+	opacity:1;
+    position: absolute;
+    text-align:center;
+    width=80px; height=auto;
+    background-color:white;
+    corder:0px;
+}
+</style>
+
+<html>
+<head><tile> 80 Cereal Nutrition Comparison </tile></head>
+
+<body ng-app="myApp" ng-controller="myCtrl">
+<p> <br><br>The github location is <a href="https://github.com/human3721/DataVis-Cereals">here</a>  </p>
+<p> The original data can be found <a href="https://www.kaggle.com/crawford/80-cereals">here</a> <br><br> </p>
+
+
+<p> 1. Click on the Pie Chart to select your favorite cereal manufactor </p>
+
+<script src="https://d3js.org/d3.v4.min.js"></script>
+<script>
+var svg = d3.select("body")
+	.append("svg")
+	.append("g");
+    
+var $scope = {};
+
+$scope.svgWidth = 800; //svg Width
+$scope.svgHeight = 500; //svg Height 
+
+//Data
+var labels = ["American Home Food Products", "General Mills", "Kelloggs", "Nabisco", 
+    		"Post", "Quaker Oats", "Ralston Purina"] 
+
+var data = [{label: labels[0], value: 1},{label: labels[1], value: 22},{label: labels[2], value: 23},
+
+            {label: labels[3], value: 6},{label: labels[4], value: 9},{label: labels[5], value: 8},
+            {label: labels[6], value: 8}];
+                
+var color = d3.scaleOrdinal()
+              .domain(labels)
+              .range(['#4daf4a','#377eb8','#ff7f00','#984ea3','#e41a1c', '#1fdde0','#d6e01f']);
+    
+
+//remove prior svg elements 
+d3.select('svg').selectAll("*").remove();
+
+//reset svg height and width in current svg 
+d3.select("svg").attr("width", $scope.svgWidth).attr("height", $scope.svgHeight);
+
+//Set up of our svg 
+var svg = d3.select("svg");
+var margin = {top: 20,right: 20,bottom: 30,left: 50};
+var width = svg.attr("width") - margin.left - margin.right;
+var height = svg.attr("height") - margin.top - margin.bottom;
+var radius = 200;
+
+//plot base area in svg 
+var g = svg.append("g").attr("transform", "translate(" + width / 2 + "," + height / 2 + ")");
+
+//plot pie
+var pie = d3.pie().sort(null)
+      .value(function(d) { return d.value; });
+
+var arc = d3.arc().innerRadius(radius*0.8).outerRadius(radius*0.3);
+      
+var outerArc = d3.arc().innerRadius(radius * 0.9).outerRadius(radius * 0.9);
+
+var path = g.selectAll("path").data(pie(data))
+                .enter().append("path")
+                .attr("fill", function(d) { return color(d.data.label); })
+                .attr("d", arc)
+                .on("click", function(d,i){
+                              console.log(labels[i]);
+                              select_mfr(labels[i]);                              
+                          });
+
+//plot label
+g.selectAll("text").data(pie(data))
+      .enter().append("text").attr("text-anchor", "middle")
+      .attr("transform", function(d){var pos = outerArc.centroid(d);
+                         pos[0] = radius * (midAngle(d) < Math.PI ? 1 : -1);
+                         return "translate("+ pos +")";
+                         })
+      .text(function(d) {
+        	return d.data.label;
+      		});
+
+function midAngle(d) {return d.startAngle + (d.endAngle - d.startAngle) / 2;}
+
+//plot polyline
+var polyline = g.selectAll("polyline")
+                    .data(pie(data), function(d) {
+                                      return d.data.label
+                                      })
+                    .enter().append("polyline")
+                    .attr("points", function(d) {
+                                  var pos = outerArc.centroid(d);
+                                  pos[0] = radius * 0.8 * (midAngle(d) < Math.PI ? 1 : -1);
+                                  return [arc.centroid(d), outerArc.centroid(d), pos];
+                                })
+
+                    .style("fill", "none").style("stroke", "black").style("stroke-width", "2px");
+
+//remove selection
+function removeOptions(selectElement) {
+   var i, L = selectElement.options.length - 1;
+   for(i = L; i >= 0; i--) {
+      selectElement.remove(i);
+   }
+}
+
+//select manufactor
+function select_mfr(selectedGroup) {
+	d3.csv('https://raw.githubusercontent.com/human3721/DataVis-Cereals/master/cereal.csv', function(dd){
+    // Create new data with the selection
+    var dataFilted = dd.filter(function(d){return d.mfr==selectedGroup})
+    
+	//console.log(dataFilted);
+    
+    //remove selected group
+    removeOptions(document.getElementById("selectButton")); 
+    
+    // List of groups
+    var allGroup = d3.map(dataFilted, function(d){return(d.name)}).keys()
+    // add the options to the button
+    d3.select("#selectButton")
+      .selectAll('myOptions')
+     	.data(allGroup)
+      .enter()
+    	.append('option')
+      .text(function (d) { return d; }) // text showed in the menu
+      .attr("value", function (d) { return d; }) // corresponding value returned by the button
+    })
+    
+    
+}
+</script>
+
+<p> 2. Select your favorite cereal from the dropdown list below</p>
+<select id="selectButton"></select>
+<p> <br></p>
+
+<div id = "tooltip"></div>
+<div id = "barChart"></div>
+<svg class = "chart"></svg>
+
+<script>
+
+d3.select("#selectButton").on("change", function(d) {
+        // filter the selected item
+        var selectedOption = d3.select(this).property("value");
+        console.log(selectedOption);    
+        d3.select("#barChart").select("svg").remove();
+      	//read data
+		d3.csv('https://raw.githubusercontent.com/human3721/DataVis-Cereals/master/cereal.csv', function(dd2){
+      		// Create new data with the selection
+        	var dataFilted2 = dd2.filter(function(d){return d.name==selectedOption});
+            
+            var dd3 =[dataFilted2[0].calories, dataFilted2[0].protein,dataFilted2[0].fat,
+                dataFilted2[0].sodium,dataFilted2[0].fiber,dataFilted2[0].carbo,dataFilted2[0].sugars,
+                dataFilted2[0].potass,dataFilted2[0].vitamins, dataFilted2[0].rating];
+            var colName = ["calories", "protein (g)", "fat (g)", "sodium (mg)", "fiber (g)", 
+            			"carbohydrates (g)", "sugars (g)","potassium (g)", "vitamins (daily%)",
+                        "rating (%)"];
+            var dd4 = [{label: colName[0], value:dd3[0]}, {label: colName[1], value:dd3[1]}, {label: colName[2], value:dd3[2]}, 
+            {label: colName[3], value:dd3[3]}, {label: colName[4], value:dd3[4]}, {label: colName[5], value:dd3[5]}, 
+            {label: colName[6], value:dd3[6]}, {label: colName[7], value:dd3[7]}, {label: colName[8], value:dd3[8]}, 
+            {label: colName[9], value:dd3[9]}];          
+
+            // set margins    
+            var margin = {top: 30, right: 30, bottom: 90, left: 60},
+                width = 700 - margin.left - margin.right,
+                height = 600 - margin.top - margin.bottom;
+                
+            var svg = d3.select("#barChart")
+                    .append("svg")
+                      .attr("width", width + margin.left + margin.right)
+                      .attr("height", height + margin.top + margin.bottom)
+                    .append("g")
+                      .attr("transform","translate(" + margin.left + "," + margin.top + ")");   
+            // x scale          
+            var x = d3.scaleBand().domain(dd4.map(function(d) {return d.label;}))
+            				.range([0,width]).padding(0.2);;                 
+            svg.append("g")
+                .attr("transform", "translate(0," + height + ")")
+                .call(d3.axisBottom(x))
+                .selectAll("text")
+                  .attr("transform", "translate(-10,0)rotate(-45)")
+                  .style("text-anchor", "end");
+                  
+            //y scale
+            var y = d3.scaleLinear()
+                    .domain([0, Math.max(...dd3)+5])
+                    .range([ height, 0]);     
+            svg.append("g")
+               .call(d3.axisLeft(y));
+            
+            //tooltip
+            var tooltip = d3.select("#tooltip");
+            
+            //plot bar chart
+			svg.selectAll("rect").data(dd4)
+              .enter().append("rect")
+                .attr("x", function(d,i) { return x(d.label); })
+                .attr("width", x.bandwidth()) 
+           		.attr("fill", "steelblue")
+                .attr("height", function(d) { return height - y(0); })
+                .attr("y", function(d) { return y(0); })
+                .on("mouseover", function(d,i){
+                	tooltip.style("opacity",1)
+                    .style("left", (d3.event.pageX)+"px")
+                    .style("top", (d3.event.pageY)+"px")
+                    .html(Math.round(d.value)+" "+d.label);
+                    console.log(Math.round(d.value)+" "+d.label);
+                    })
+                .on("mouseout", function() {tooltip.style("opacity",0)});
+                                
+			// add transition
+            svg.selectAll("rect").data(dd4)
+                .transition()
+                .duration(800)
+                .attr("y", function(d) { return y(d.value); })
+                .attr("height", function(d) { return height - y(d.value); })
+                .delay(function(d,i){return(i*100)}) //console.log(i) ; 
+            
+            // add title
+            svg.append("text")
+            	.attr("x", (width / 2))             
+                .attr("y", 0 - (margin.top / 2))
+                .attr("text-anchor", "middle")  
+                .style("font-size", "16px") 
+				.text("Nutrition fact of "+ dataFilted2[0].cups +" cup (1 serving) of " + dataFilted2[0].name +" cereal");
+            
+            // add y axis
+            svg.append("text")
+              .attr("transform", "rotate(-90)")
+              .attr("y", 0 - margin.left)
+              .attr("x",0 - (height / 2))
+              .attr("dy", "1em")
+              .style("text-anchor", "middle")
+              .text("Value");  			
+
+  			d3.select("#selectButton2")
+               .selectAll('myOptions')
+               .data(colName)
+               .enter()
+               .append('option')
+               .text(function (d) { return d; }) // text showed in the menu
+               .attr("value", function (d) { return d; })
+        })
+
+    })
+</script>
+
+<p> 3. Compare your favourite cereal to other 80 cereal using histograms</p>
+<p>    Select one of the nutrition </p>
+
+<select id="selectButton2"></select>
+<p></p>
+<p></p>
+
+<div id = "tooltip2"></div>
+<div id = "barChart2"></div>
+<svg class = "chart"></svg>
+
+<script>
+
+d3.select("#selectButton2").on("change", function(d) {
+        // filter the selected item
+    var selectedOption2 = d3.select(this).property("value");
+    console.log(selectedOption2);
+    //read data
+    d3.csv('https://raw.githubusercontent.com/human3721/DataVis-Cereals/master/cereal.csv', function(dd5){
+        if (selectedOption2 == "calories") {
+            var dd6 = dd5.map(function(d) { return {value: d.calories} ;});
+        } else if (selectedOption2 == "protein (g)") {
+            var dd6 = dd5.map(function(d) { return {value: d.protein} ;});
+        } else if (selectedOption2 == "fat (g)") {
+            var dd6 = dd5.map(function(d) { return {value: d.fat} ;});
+        } else if (selectedOption2 == "sodium (mg)") {
+            var dd6 = dd5.map(function(d) { return {value: d.sodium} ;});
+        } else if (selectedOption2 == "fiber (g)") {
+            var dd6 = dd5.map(function(d) { return {value: d.fiber} ;});
+        } else if (selectedOption2 == "carbohydrates (g)") {
+            var dd6 = dd5.map(function(d) { return {value: d.carbo} ;});
+        } else if (selectedOption2 == "sugars (g)") {
+            var dd6 = dd5.map(function(d) { return {value: d.sugars} ;});
+        } else if (selectedOption2 == "potassium (g)") {
+            var dd6 = dd5.map(function(d) { return {value: d.potass} ;});
+        } else if (selectedOption2 == "vitamins (daily%)") {
+            var dd6 = dd5.map(function(d) { return {value: d.vitamins} ;});
+        } else if (selectedOption2 == "rating (%)") {
+            var dd6 = dd5.map(function(d) { return {value: d.rating} ;});
+        } 
+        console.log(dd6);
+		
+        d3.select("#barChart2").select("svg").remove();
+        
+		// set the dimensions and margins of the graph
+        var margin = {top: 30, right: 30, bottom: 90, left: 60},
+            width = 700 - margin.left - margin.right,
+            height = 600 - margin.top - margin.bottom;
+
+        // append the svg object to the body of the page
+        var svg = d3.select("#barChart2")
+          .append("svg")
+            .attr("width", width + margin.left + margin.right)
+            .attr("height", height + margin.top + margin.bottom)
+          .append("g")
+            .attr("transform",
+                  "translate(" + margin.left + "," + margin.top + ")");
+        // x axis          
+        var x = d3.scaleLinear()
+              .domain([0-d3.max(dd6, function(d) { return +d.value })*0.1, d3.max(dd6, function(d) { return +d.value })*1.1])     
+              .range([0, width]);
+          svg.append("g")
+              .attr("transform", "translate(0," + height + ")")
+              .call(d3.axisBottom(x));
+
+          // set the parameters for the histogram
+          var histogram = d3.histogram()
+              .value(function(d) { return d.value; })   // I need to give the vector of value
+              .domain(x.domain())  // then the domain of the graphic
+              .thresholds(x.ticks(10)); // then the numbers of bins
+
+          // apply this function to data to get the bins
+          var bins = histogram(dd6);
+
+          // Y axis
+          var y = d3.scaleLinear()
+              .range([height, 0]);
+              y.domain([0, d3.max(bins, function(d) { return d.length; })*1.1]); 
+          svg.append("g")
+              .call(d3.axisLeft(y));
+              
+          // add tooltip
+          var tooltip = d3.select("#tooltip");
+		
+          // append the bar rectangles to the svg element
+          svg.selectAll("rect")
+              .data(bins)
+              .enter()
+              .append("rect")
+              .attr("x", 1)
+              .attr("transform", function(d) { return "translate(" + x(d.x0) + "," + y(d.length) + ")"; })
+              .attr("width", function(d) { return x(d.x1) - x(d.x0) -1 ; })
+              .attr("height", function(d) { return height - y(d.length); })
+              .style("fill", "lightsteelblue")	
+              .on("mouseover", function(d,i){   //tooltip
+                  tooltip.style("opacity",1)
+                  .style("left", (d3.event.pageX)+"px")
+                  .style("top", (d3.event.pageY)+"px")
+                  .html("Freq. = "+d.length);
+                  console.log("Freq. = "+d.length);
+              })
+              .on("mouseout", function() {tooltip.style("opacity",0)});        
+          
+          // add title
+          svg.append("text")
+            .attr("x", (width / 2))             
+            .attr("y", 0 - (margin.top / 2))
+            .attr("text-anchor", "middle")  
+            .style("font-size", "16px") 
+            .text("Hitogram of "+ selectedOption2 +" in 80 cereals ");   
+          
+          //add x axis
+          svg.append("text")             
+              .attr("transform",
+                    "translate(" + (width/2) + " ," + 
+                                   (height + margin.top + 20) + ")")
+              .style("text-anchor", "middle")
+              .text(selectedOption2);       
+              
+		  // add y axis
+          svg.append("text")
+            .attr("transform", "rotate(-90)")
+            .attr("y", 0 - margin.left)
+            .attr("x",0 - (height / 2))
+            .attr("dy", "1em")
+            .style("text-anchor", "middle")
+            .text("Frequency");  
+		})
+     })
+
+      
+</script>
+
+<p> Feel free the select another manufactor, another cereal, or another nutrition to compare. </p>
+
+<p> Have fun. </p>
+
+</body>
+</html>
+
